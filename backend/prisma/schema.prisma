@@ -1,0 +1,154 @@
+// Database
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Enums
+enum UserRole {
+  PATIENT
+  EDITOR
+  ADMIN
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+}
+
+// Models
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  passwordHash  String
+  fullName      String
+  role          UserRole   @default(PATIENT)
+  isApproved    Boolean    @default(false)
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Relations
+  episodes      MigraineEpisode[]
+  articles      Article[]
+  comments      ArticleComment[]
+  subscriptions UserSubscription[]
+  auditLogs     AuditLog[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model MigraineEpisode {
+  id            String   @id @default(cuid())
+  userId        String
+  date          DateTime
+  severity      Int      @db.SmallInt // 1-10
+  durationMinutes Int?
+  location      String?  // e.g., "left temple", "occipital"
+  triggers      String[] @default([])
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([date])
+  @@map("migraine_episodes")
+}
+
+model UserStatistics {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  lastEpisodeDate   DateTime?
+  episodesThisMonth Int      @default(0)
+  episodesLastMonth Int      @default(0)
+  averageSeverity   Float    @default(0)
+  updatedAt         DateTime @updatedAt
+
+  @@map("user_statistics")
+}
+
+model Article {
+  id                  String          @id @default(cuid())
+  title               String
+  slug                String          @unique
+  content             String
+  excerpt             String?
+  authorId            String
+  status              ArticleStatus   @default(DRAFT)
+  commentsEnabled     Boolean         @default(false)
+  isPublic            Boolean         @default(true)
+  requiresSubscription Boolean        @default(false)
+  createdAt           DateTime        @default(now())
+  publishedAt         DateTime?
+  updatedAt           DateTime        @updatedAt
+
+  // Relations
+  author              User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments            ArticleComment[]
+
+  @@index([authorId])
+  @@index([status])
+  @@index([publishedAt])
+  @@map("articles")
+}
+
+model ArticleComment {
+  id        String   @id @default(cuid())
+  articleId String
+  userId    String
+  content   String
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+  @@index([userId])
+  @@map("article_comments")
+}
+
+model UserSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  isActive  Boolean  @default(false)
+  stripeId  String?
+  startDate DateTime?
+  endDate   DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_subscriptions")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String   // e.g., "USER_CREATED", "ARTICLE_PUBLISHED", "USER_BLOCKED"
+  entity    String   // e.g., "user", "article", "comment"
+  entityId  String
+  changes   String?  // JSON string of what changed
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

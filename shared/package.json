@@ -1,0 +1,16 @@
+{
+  "name": "headache-hub-shared",
+  "version": "0.0.1",
+  "description": "Shared types and utilities for Headache Hub",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "zod": "^3.22.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.1.6"
+  }
+}
