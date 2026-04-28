@@ -1,0 +1,56 @@
+import { AxiosError } from 'axios';
+import { apiClient } from './client';
+import { ApiResponse, AuthPayload, LoginRequest, RegisterRequest, User } from '../types/auth';
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof AxiosError) {
+    const apiMessage = error.response?.data?.error || error.response?.data?.message;
+    if (typeof apiMessage === 'string') {
+      return apiMessage;
+    }
+  }
+
+  return error instanceof Error ? error.message : 'Unexpected request error';
+};
+
+export const registerAccount = async (payload: RegisterRequest): Promise<User> => {
+  try {
+    const response = await apiClient.post<ApiResponse<User>>('/auth/register', payload);
+
+    if (!response.data.data) {
+      throw new Error('Registration response did not include a user');
+    }
+
+    return response.data.data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+};
+
+export const loginAccount = async (payload: LoginRequest): Promise<AuthPayload> => {
+  try {
+    const response = await apiClient.post<ApiResponse<AuthPayload>>('/auth/login', payload);
+
+    if (!response.data.data) {
+      throw new Error('Login response did not include auth data');
+    }
+
+    return response.data.data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+};
+
+export const fetchCurrentUser = async (): Promise<User> => {
+  try {
+    const response = await apiClient.get<ApiResponse<User>>('/auth/me');
+
+    if (!response.data.data) {
+      throw new Error('Current user response did not include user data');
+    }
+
+    return response.data.data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+};

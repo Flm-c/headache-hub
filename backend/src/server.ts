@@ -2,31 +2,17 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { PrismaClient } from '@prisma/client';
-
-// Types
-interface ApiResponse<T> {
-  success: boolean;
-  code: number;
-  message: string;
-  data?: T;
-  error?: string;
-}
-
-interface RequestWithUser extends Request {
-  user?: {
-    id: string;
-    email: string;
-    role: string;
-  };
-}
+import authRouter from './routes/auth';
+import adminRouter from './routes/admin';
+import { errorHandler } from './middleware/errorHandler';
+import { prisma } from './utils/prisma';
+import { sendError, sendSuccess } from './utils/apiResponse';
 
 // Initialize Express app
 const app = express();
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
@@ -51,41 +37,23 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // Health check route
-app.get('/health', (req: Request, res: Response<ApiResponse<null>>) => {
-  res.json({
-    success: true,
-    code: 200,
-    message: 'Server is running',
-  });
+app.get('/health', (req: Request, res: Response) => {
+  sendSuccess(res, 200, 'Server is running');
 });
 
-// API routes placeholder
-app.get('/api', (req: Request, res: Response<ApiResponse<null>>) => {
-  res.json({
-    success: true,
-    code: 200,
-    message: 'Headache Hub API v1.0',
-  });
+app.get('/api', (req: Request, res: Response) => {
+  sendSuccess(res, 200, 'Headache Hub API v1.0');
 });
+
+app.use('/api/auth', authRouter);
+app.use('/api/admin', adminRouter);
 
 // Error handling middleware
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    success: false,
-    code: err.status || 500,
-    message: err.message || 'Internal Server Error',
-    error: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-  });
-});
+app.use(errorHandler);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
-  res.status(404).json({
-    success: false,
-    code: 404,
-    message: 'Not Found',
-  });
+  sendError(res, 404, 'Not Found', `Route '${req.originalUrl}' does not exist`);
 });
 
 // Start server
