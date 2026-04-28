@@ -7,6 +7,7 @@ import { sendError, sendSuccess } from '../utils/apiResponse';
 import {
   approveUser,
   createUserByAdmin,
+  listAuditLogs,
   listUsers,
   updateUserRole,
   updateUserStatus,
@@ -32,7 +33,7 @@ adminRouter.get('/users', async (req: AuthenticatedRequest, res: Response, next:
 adminRouter.post('/users', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const input = validateAdminCreateUserInput(req.body);
-    const user = await createUserByAdmin(input);
+    const user = await createUserByAdmin(input, req.user!.id);
     sendSuccess(res, 201, 'User created successfully', user);
   } catch (error) {
     next(error);
@@ -43,7 +44,7 @@ adminRouter.patch(
   '/users/:userId/approve',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const user = await approveUser(req.params.userId);
+      const user = await approveUser(req.params.userId, req.user!.id);
       sendSuccess(res, 200, 'User approved successfully', user);
     } catch (error) {
       next(error);
@@ -56,7 +57,7 @@ adminRouter.patch(
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const input = validateAdminUpdateRoleInput(req.body);
-      const user = await updateUserRole(req.params.userId, input.role);
+      const user = await updateUserRole(req.params.userId, input.role, req.user!.id);
       sendSuccess(res, 200, 'User role updated successfully', user);
     } catch (error) {
       next(error);
@@ -74,8 +75,25 @@ adminRouter.patch(
       }
 
       const input = validateAdminUpdateStatusInput(req.body);
-      const user = await updateUserStatus(req.params.userId, input.isActive);
+      const user = await updateUserStatus(req.params.userId, input.isActive, req.user!.id);
       sendSuccess(res, 200, 'User status updated successfully', user);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+adminRouter.get(
+  '/audit-logs',
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page ?? '1'), 10) || 1);
+      const pageSize = Math.min(50, Math.max(1, parseInt(String(req.query.pageSize ?? '20'), 10) || 20));
+      const action = typeof req.query.action === 'string' && req.query.action ? req.query.action : undefined;
+      const actorId = typeof req.query.actorId === 'string' && req.query.actorId ? req.query.actorId : undefined;
+
+      const result = await listAuditLogs({ page, pageSize, action, actorId });
+      sendSuccess(res, 200, 'Audit logs fetched successfully', result);
     } catch (error) {
       next(error);
     }

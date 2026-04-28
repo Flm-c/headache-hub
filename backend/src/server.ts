@@ -9,6 +9,7 @@ import authRouter from './routes/auth';
 import adminRouter from './routes/admin';
 import episodesRouter from './routes/episodes';
 import articlesRouter from './routes/articles';
+import profileRouter from './routes/profile';
 import { errorHandler } from './middleware/errorHandler';
 import { prisma } from './utils/prisma';
 import { sendError, sendSuccess } from './utils/apiResponse';
@@ -51,6 +52,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/episodes', episodesRouter);
 app.use('/api/articles', articlesRouter);
+app.use('/api/profile', profileRouter);
 
 // Error handling middleware
 app.use(errorHandler);

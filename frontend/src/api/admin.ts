@@ -1,8 +1,9 @@
-import { AxiosError } from 'axios';
+﻿import { AxiosError } from 'axios';
 import { apiClient } from './client';
 import {
   AdminCreateUserRequest,
   ApiResponse,
+  AuditLogResult,
   UpdateUserRoleRequest,
   UpdateUserStatusRequest,
   User,
@@ -84,6 +85,29 @@ export const createAdminUser = async (payload: AdminCreateUserRequest): Promise<
 
     if (!response.data.data) {
       throw new Error('Create user response did not include user data');
+    }
+
+    return response.data.data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+};
+
+export const fetchAuditLogs = async (params: {
+  page?: number;
+  pageSize?: number;
+  action?: string;
+}): Promise<AuditLogResult> => {
+  try {
+    const q = new URLSearchParams();
+    if (params.page) q.set('page', String(params.page));
+    if (params.pageSize) q.set('pageSize', String(params.pageSize));
+    if (params.action) q.set('action', params.action);
+
+    const response = await apiClient.get<ApiResponse<AuditLogResult>>(`/admin/audit-logs?${q}`);
+
+    if (!response.data.data) {
+      throw new Error('Audit logs response did not include data');
     }
 
     return response.data.data;

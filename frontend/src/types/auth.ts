@@ -51,3 +51,26 @@ export interface UpdateUserRoleRequest {
 export interface UpdateUserStatusRequest {
   isActive: boolean;
 }
+
+export interface AuditLogActor {
+  id: string;
+  fullName: string;
+  email: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  action: string;
+  entity: string;
+  entityId: string;
+  changes: string | null;
+  createdAt: string;
+  user: AuditLogActor;
+}
+
+export interface AuditLogResult {
+  logs: AuditLogEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+}

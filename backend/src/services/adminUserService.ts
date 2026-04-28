@@ -3,6 +3,7 @@ import { UserRole } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../utils/prisma';
 import { HttpError } from '../utils/httpError';
+import { logAudit } from '../utils/auditLog';
 
 const createUserSchema = z.object({
   fullName: z.string().trim().min(2, 'Full name must be at least 2 characters long').max(120),
@@ -57,14 +58,14 @@ export const listUsers = async (status?: string) => {
   });
 };
 
-export const approveUser = async (userId: string) => {
+export const approveUser = async (userId: string, actorId: string) => {
   const existingUser = await prisma.user.findUnique({ where: { id: userId } });
 
   if (!existingUser) {
     throw new HttpError(404, 'Not Found', `User with ID '${userId}' does not exist`);
   }
 
-  return prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: userId },
     data: { isApproved: true },
     select: {
@@ -78,16 +79,19 @@ export const approveUser = async (userId: string) => {
       updatedAt: true,
     },
   });
+
+  logAudit(actorId, 'USER_APPROVED', 'user', userId);
+  return updated;
 };
 
-export const updateUserRole = async (userId: string, role: UserRole) => {
+export const updateUserRole = async (userId: string, role: UserRole, actorId: string) => {
   const existingUser = await prisma.user.findUnique({ where: { id: userId } });
 
   if (!existingUser) {
     throw new HttpError(404, 'Not Found', `User with ID '${userId}' does not exist`);
   }
 
-  return prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: userId },
     data: { role },
     select: {
@@ -101,16 +105,19 @@ export const updateUserRole = async (userId: string, role: UserRole) => {
       updatedAt: true,
     },
   });
+
+  logAudit(actorId, 'USER_ROLE_CHANGED', 'user', userId, { from: existingUser.role, to: role });
+  return updated;
 };
 
-export const updateUserStatus = async (userId: string, isActive: boolean) => {
+export const updateUserStatus = async (userId: string, isActive: boolean, actorId: string) => {
   const existingUser = await prisma.user.findUnique({ where: { id: userId } });
 
   if (!existingUser) {
     throw new HttpError(404, 'Not Found', `User with ID '${userId}' does not exist`);
   }
 
-  return prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: userId },
     data: { isActive },
     select: {
@@ -124,9 +131,12 @@ export const updateUserStatus = async (userId: string, isActive: boolean) => {
       updatedAt: true,
     },
   });
+
+  logAudit(actorId, isActive ? 'USER_UNBLOCKED' : 'USER_BLOCKED', 'user', userId);
+  return updated;
 };
 
-export const createUserByAdmin = async (input: AdminCreateUserInput) => {
+export const createUserByAdmin = async (input: AdminCreateUserInput, actorId: string) => {
   const existingUser = await prisma.user.findUnique({ where: { email: input.email } });
 
   if (existingUser) {
@@ -135,7 +145,7 @@ export const createUserByAdmin = async (input: AdminCreateUserInput) => {
 
   const passwordHash = await bcrypt.hash(input.password, 10);
 
-  return prisma.user.create({
+  const created = await prisma.user.create({
     data: {
       fullName: input.fullName,
       email: input.email,
@@ -155,4 +165,34 @@ export const createUserByAdmin = async (input: AdminCreateUserInput) => {
       updatedAt: true,
     },
   });
+
+  logAudit(actorId, 'USER_CREATED', 'user', created.id, { role: input.role });
+  return created;
+};
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+export const listAuditLogs = async (params: {
+  page: number;
+  pageSize: number;
+  action?: string;
+  actorId?: string;
+}) => {
+  const where = {
+    ...(params.action ? { action: params.action } : {}),
+    ...(params.actorId ? { userId: params.actorId } : {}),
+  };
+
+  const [logs, total] = await prisma.$transaction([
+    prisma.auditLog.findMany({
+      where,
+      include: { user: { select: { id: true, fullName: true, email: true } } },
+      orderBy: { createdAt: 'desc' },
+      skip: (params.page - 1) * params.pageSize,
+      take: params.pageSize,
+    }),
+    prisma.auditLog.count({ where }),
+  ]);
+
+  return { logs, total, page: params.page, pageSize: params.pageSize };
 };

@@ -51,10 +51,10 @@ export default function Navigation() {
             )}
             {isAuthenticated && user ? (
               <>
-                <div className="text-right text-sm leading-tight">
+                <Link to="/dashboard/profile" className="text-right text-sm leading-tight hover:opacity-75">
                   <div className="font-semibold text-gray-900">{user.fullName}</div>
                   <div className="text-gray-500">{user.role}</div>
-                </div>
+                </Link>
                 <button
                   type="button"
                   onClick={logout}

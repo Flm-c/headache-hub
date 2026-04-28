@@ -9,6 +9,7 @@ import ArticlesPage from './pages/ArticlesPage';
 import ArticlePage from './pages/ArticlePage';
 import ArticleEditorPage from './pages/ArticleEditorPage';
 import MyArticlesPage from './pages/MyArticlesPage';
+import ProfilePage from './pages/ProfilePage';
 import AdminPage from './pages/AdminPage';
 import EpisodeTrackingPage from './pages/EpisodeTrackingPage';
 import EpisodeCalendarPage from './pages/EpisodeCalendarPage';
@@ -28,6 +29,7 @@ function App() {
 
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/dashboard/profile" element={<ProfilePage />} />
         </Route>
         <Route element={<ProtectedRoute requireApproved />}>
           <Route path="/dashboard/episodes" element={<EpisodeTrackingPage />} />

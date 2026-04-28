@@ -3,6 +3,7 @@ import { ArticleStatus } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../utils/prisma';
 import { HttpError } from '../utils/httpError';
+import { logAudit } from '../utils/auditLog';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -213,11 +214,14 @@ export const publishArticle = async (articleId: string, authorId: string, isAdmi
     throw new HttpError(400, 'Bad Request', 'Cannot publish an article with empty content');
   }
 
-  return prisma.article.update({
+  const updated = await prisma.article.update({
     where: { id: articleId },
     data: { status: ArticleStatus.PUBLISHED, publishedAt: new Date() },
     select: articleWithContentSelect,
   });
+
+  logAudit(authorId, 'ARTICLE_PUBLISHED', 'article', articleId);
+  return updated;
 };
 
 export const unpublishArticle = async (articleId: string, authorId: string, isAdmin: boolean) => {
@@ -229,11 +233,14 @@ export const unpublishArticle = async (articleId: string, authorId: string, isAd
     throw new HttpError(404, 'Not Found', `Article '${articleId}' not found`);
   }
 
-  return prisma.article.update({
+  const updated = await prisma.article.update({
     where: { id: articleId },
     data: { status: ArticleStatus.DRAFT, publishedAt: null },
     select: articleWithContentSelect,
   });
+
+  logAudit(authorId, 'ARTICLE_UNPUBLISHED', 'article', articleId);
+  return updated;
 };
 
 export const deleteArticle = async (articleId: string, authorId: string, isAdmin: boolean) => {
