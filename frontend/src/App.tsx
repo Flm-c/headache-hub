@@ -6,6 +6,9 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import ArticlesPage from './pages/ArticlesPage';
+import ArticlePage from './pages/ArticlePage';
+import ArticleEditorPage from './pages/ArticleEditorPage';
+import MyArticlesPage from './pages/MyArticlesPage';
 import AdminPage from './pages/AdminPage';
 import EpisodeTrackingPage from './pages/EpisodeTrackingPage';
 import EpisodeCalendarPage from './pages/EpisodeCalendarPage';
@@ -18,7 +21,11 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+
+        {/* Public article routes */}
         <Route path="/articles" element={<ArticlesPage />} />
+        <Route path="/articles/:slug" element={<ArticlePage />} />
+
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<DashboardPage />} />
         </Route>
@@ -27,6 +34,14 @@ function App() {
           <Route path="/dashboard/calendar" element={<EpisodeCalendarPage />} />
           <Route path="/dashboard/stats" element={<EpisodeStatsPage />} />
         </Route>
+
+        {/* Editor & Admin: article authoring */}
+        <Route element={<ProtectedRoute allowedRoles={['EDITOR', 'ADMIN']} requireApproved />}>
+          <Route path="/articles/new" element={<ArticleEditorPage />} />
+          <Route path="/articles/:id/edit" element={<ArticleEditorPage />} />
+          <Route path="/dashboard/my-articles" element={<MyArticlesPage />} />
+        </Route>
+
         <Route element={<ProtectedRoute allowedRoles={['ADMIN']} requireApproved />}>
           <Route path="/admin" element={<AdminPage />} />
         </Route>

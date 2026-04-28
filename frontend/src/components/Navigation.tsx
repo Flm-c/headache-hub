@@ -4,6 +4,9 @@ import { useAuth } from '../hooks/useAuth';
 export default function Navigation() {
   const { isAuthenticated, user, logout } = useAuth();
 
+  const isAuthor = isAuthenticated && user?.isApproved &&
+    (user.role === 'EDITOR' || user.role === 'ADMIN');
+
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200">
       <div className="container mx-auto px-4 max-w-6xl">
@@ -26,6 +29,19 @@ export default function Navigation() {
             {isAuthenticated && user?.isApproved && (
               <Link to="/dashboard/episodes" className="text-gray-700 hover:text-blue-600">
                 Tracker
+              </Link>
+            )}
+            {isAuthor && (
+              <Link to="/dashboard/my-articles" className="text-gray-700 hover:text-blue-600">
+                My Articles
+              </Link>
+            )}
+            {isAuthor && (
+              <Link
+                to="/articles/new"
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                + Write
               </Link>
             )}
             {user?.role === 'ADMIN' && (

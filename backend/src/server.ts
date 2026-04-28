@@ -8,6 +8,7 @@ import rateLimit from 'express-rate-limit';
 import authRouter from './routes/auth';
 import adminRouter from './routes/admin';
 import episodesRouter from './routes/episodes';
+import articlesRouter from './routes/articles';
 import { errorHandler } from './middleware/errorHandler';
 import { prisma } from './utils/prisma';
 import { sendError, sendSuccess } from './utils/apiResponse';
@@ -49,6 +50,7 @@ app.get('/api', (req: Request, res: Response) => {
 app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/episodes', episodesRouter);
+app.use('/api/articles', articlesRouter);
 
 // Error handling middleware
 app.use(errorHandler);
