@@ -1,8 +1,15 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useQuery } from '@tanstack/react-query';
+import { fetchEpisodeStats } from '../api/episodes';
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { data: stats } = useQuery({
+    queryKey: ['episodeStats', 'dashboard'],
+    queryFn: () => fetchEpisodeStats(),
+    enabled: Boolean(user?.isApproved),
+  });
 
   if (!user) {
     return null;
@@ -48,11 +55,57 @@ export default function DashboardPage() {
           </div>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-5">
+              <div className="text-sm text-blue-700">Total episodes</div>
+              <div className="mt-2 text-2xl font-semibold text-blue-900">
+                {stats?.totalEpisodes ?? 0}
+              </div>
+            </div>
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-5">
+              <div className="text-sm text-blue-700">Average severity</div>
+              <div className="mt-2 text-2xl font-semibold text-blue-900">
+                {stats?.averageSeverity ?? 0}
+              </div>
+            </div>
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-5">
+              <div className="text-sm text-blue-700">Average duration</div>
+              <div className="mt-2 text-2xl font-semibold text-blue-900">
+                {stats?.averageDurationMinutes ?? 0} min
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <Link
+              to="/dashboard/episodes"
+              className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:border-blue-300"
+            >
+              <h2 className="text-xl font-semibold text-gray-900">Episode tracking</h2>
+              <p className="mt-2 text-gray-600">Log episodes, keep a timeline and manage records.</p>
+            </Link>
+            <Link
+              to="/dashboard/calendar"
+              className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:border-blue-300"
+            >
+              <h2 className="text-xl font-semibold text-gray-900">Calendar view</h2>
+              <p className="mt-2 text-gray-600">See migraine activity by date in monthly calendar mode.</p>
+            </Link>
+            <Link
+              to="/dashboard/stats"
+              className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:border-blue-300"
+            >
+              <h2 className="text-xl font-semibold text-gray-900">Statistics</h2>
+              <p className="mt-2 text-gray-600">Explore trigger frequency and average episode indicators.</p>
+            </Link>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-gray-900">Migraine tracking</h2>
             <p className="mt-2 text-gray-600">
-              Phase 3 will connect this area to episode logging, calendar history and trend analysis.
+              Phase 3 tracking is now available through the new dashboard sections above.
             </p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -60,6 +113,7 @@ export default function DashboardPage() {
             <p className="mt-2 text-gray-600">
               Your account is approved and ready for protected features as they land in the next phase.
             </p>
+          </div>
           </div>
         </div>
       )}

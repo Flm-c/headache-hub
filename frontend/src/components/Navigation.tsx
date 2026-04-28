@@ -23,6 +23,11 @@ export default function Navigation() {
                 Dashboard
               </Link>
             )}
+            {isAuthenticated && user?.isApproved && (
+              <Link to="/dashboard/episodes" className="text-gray-700 hover:text-blue-600">
+                Tracker
+              </Link>
+            )}
             {user?.role === 'ADMIN' && (
               <Link to="/admin" className="text-gray-700 hover:text-blue-600">
                 Admin
