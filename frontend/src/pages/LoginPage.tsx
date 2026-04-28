@@ -32,10 +32,17 @@ export default function LoginPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage('');
+
+    const trimmedEmail = formData.email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setErrorMessage('Please enter a valid email address');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const loggedInUser = await login(formData);
+      const loggedInUser = await login({ ...formData, email: trimmedEmail });
       const redirectTo =
         typeof location.state === 'object' &&
         location.state &&

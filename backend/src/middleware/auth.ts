@@ -11,13 +11,19 @@ export const authenticate = async (
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
+    const queryToken =
+      typeof req.query.token === 'string' && req.query.token ? req.query.token : null;
 
-    if (!authHeader?.startsWith('Bearer ')) {
+    const rawToken = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length)
+      : queryToken;
+
+    if (!rawToken) {
       sendError(res, 401, 'Unauthorized', 'Missing or invalid bearer token');
       return;
     }
 
-    const token = authHeader.slice('Bearer '.length);
+    const token = rawToken;
     const payload = verifyAccessToken(token);
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },

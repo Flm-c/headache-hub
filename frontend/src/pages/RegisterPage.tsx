@@ -19,6 +19,12 @@ export default function RegisterPage() {
     setErrorMessage('');
     setSuccessMessage('');
 
+    const trimmedEmail = formData.email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setErrorMessage('Please enter a valid email address');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setErrorMessage('Passwords do not match');
       return;
@@ -29,7 +35,7 @@ export default function RegisterPage() {
     try {
       await register({
         fullName: formData.fullName,
-        email: formData.email,
+        email: trimmedEmail,
         password: formData.password,
       });
 

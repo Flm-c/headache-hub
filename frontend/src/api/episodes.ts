@@ -103,3 +103,16 @@ export const fetchEpisodeStats = async (query: EpisodeStatsQuery = {}): Promise<
     throw new Error(getErrorMessage(error));
   }
 };
+
+export const downloadEpisodesCsv = (): void => {
+  const token = localStorage.getItem('headache-hub.access-token');
+  const baseUrl = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:3000/api';
+  const url = `${baseUrl}/episodes/export.csv?token=${encodeURIComponent(token ?? '')}`;
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'headache-episodes.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};

@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createEpisode, deleteEpisode, fetchEpisodes } from '../api/episodes';
+import { createEpisode, deleteEpisode, downloadEpisodesCsv, fetchEpisodes } from '../api/episodes';
 
 const LOCATION_PRESETS = [
   'Left temple',
@@ -373,7 +373,19 @@ export default function EpisodeTrackingPage() {
       <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-xl font-semibold text-gray-900">History</h2>
-          <div className="text-sm text-gray-500">Total: {data?.pagination.total || 0}</div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">Total: {data?.pagination.total || 0}</span>
+            <button
+              onClick={downloadEpisodesCsv}
+              title="Export to CSV"
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Export CSV
+            </button>
+          </div>
         </div>
 
         {isLoading ? (

@@ -1,23 +1,30 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
-import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import DashboardPage from './pages/DashboardPage';
-import ArticlesPage from './pages/ArticlesPage';
-import ArticlePage from './pages/ArticlePage';
-import ArticleEditorPage from './pages/ArticleEditorPage';
-import MyArticlesPage from './pages/MyArticlesPage';
-import ProfilePage from './pages/ProfilePage';
-import AdminPage from './pages/AdminPage';
-import EpisodeTrackingPage from './pages/EpisodeTrackingPage';
-import EpisodeCalendarPage from './pages/EpisodeCalendarPage';
-import EpisodeStatsPage from './pages/EpisodeStatsPage';
+
+const HomePage = lazy(() => import('./pages/HomePage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const ArticlesPage = lazy(() => import('./pages/ArticlesPage'));
+const ArticlePage = lazy(() => import('./pages/ArticlePage'));
+const ArticleEditorPage = lazy(() => import('./pages/ArticleEditorPage'));
+const MyArticlesPage = lazy(() => import('./pages/MyArticlesPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+const EpisodeTrackingPage = lazy(() => import('./pages/EpisodeTrackingPage'));
+const EpisodeCalendarPage = lazy(() => import('./pages/EpisodeCalendarPage'));
+const EpisodeStatsPage = lazy(() => import('./pages/EpisodeStatsPage'));
 
 function App() {
   return (
-    <Routes>
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+      </div>
+    }>
+      <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -50,6 +57,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+    </Suspense>
   );
 }
 

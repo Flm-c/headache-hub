@@ -252,3 +252,36 @@ export const getEpisodeStats = async (
     topTriggers,
   };
 };
+
+const escapeCsvField = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined) return '';
+  const str = String(value);
+  if (str.includes(';') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+};
+
+const CSV_SEP = ';';
+const BOM = '\uFEFF';
+
+export const exportEpisodesAsCsv = async (userId: string): Promise<string> => {
+  const episodes = await prisma.migraineEpisode.findMany({
+    where: { userId },
+    orderBy: { date: 'desc' },
+  });
+
+  const header = ['Date', 'Severity', 'Duration (min)', 'Location', 'Triggers', 'Notes'].join(CSV_SEP);
+  const rows = episodes.map((ep) =>
+    [
+      escapeCsvField(ep.date.toISOString().slice(0, 10)),
+      escapeCsvField(ep.severity),
+      escapeCsvField(ep.durationMinutes),
+      escapeCsvField(ep.location),
+      escapeCsvField(ep.triggers.join(', ')),
+      escapeCsvField(ep.notes),
+    ].join(CSV_SEP)
+  );
+
+  return BOM + [header, ...rows].join('\r\n');
+};

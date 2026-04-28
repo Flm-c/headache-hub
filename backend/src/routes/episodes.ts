@@ -5,6 +5,7 @@ import { sendSuccess } from '../utils/apiResponse';
 import {
   createEpisode,
   deleteEpisode,
+  exportEpisodesAsCsv,
   getEpisodeById,
   getEpisodeStats,
   listEpisodes,
@@ -44,6 +45,17 @@ episodesRouter.get('/stats', async (req: AuthenticatedRequest, res: Response, ne
     const query = validateEpisodeStatsQueryInput(req.query);
     const stats = await getEpisodeStats(req.user!.id, query);
     sendSuccess(res, 200, 'Episode statistics fetched successfully', stats);
+  } catch (error) {
+    next(error);
+  }
+});
+
+episodesRouter.get('/export.csv', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const csv = await exportEpisodesAsCsv(req.user!.id);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="headache-episodes.csv"');
+    res.send(csv);
   } catch (error) {
     next(error);
   }
