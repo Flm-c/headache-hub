@@ -178,7 +178,7 @@ export const createUserByAdmin = async (input: AdminCreateUserInput, actorId: st
     throw new HttpError(409, 'Conflict', `Email '${input.email}' is already registered`);
   }
 
-  const passwordHash = await bcrypt.hash(input.password, 10);
+  const passwordHash = await bcrypt.hash(input.password, 12);
 
   const created = await prisma.user.create({
     data: {

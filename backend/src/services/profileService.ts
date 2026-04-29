@@ -70,7 +70,7 @@ export const updateProfile = async (
     if (!isMatch) {
       throw new HttpError(400, 'Bad Request', 'Current password is incorrect');
     }
-    updateData.passwordHash = await bcrypt.hash(input.newPassword, 10);
+    updateData.passwordHash = await bcrypt.hash(input.newPassword, 12);
   }
 
   if (Object.keys(updateData).length === 0) {
