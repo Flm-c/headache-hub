@@ -7,6 +7,7 @@ import {
   UpdateUserRoleRequest,
   UpdateUserStatusRequest,
   User,
+  UserListResult,
 } from '../types/auth';
 
 const getErrorMessage = (error: unknown): string => {
@@ -20,12 +21,41 @@ const getErrorMessage = (error: unknown): string => {
   return error instanceof Error ? error.message : 'Unexpected request error';
 };
 
-export const fetchAdminUsers = async (status: 'all' | 'pending' | 'approved'): Promise<User[]> => {
-  try {
-    const query = status === 'all' ? '' : `?status=${status}`;
-    const response = await apiClient.get<ApiResponse<User[]>>(`/admin/users${query}`);
+export interface FetchAdminUsersParams {
+  status?: 'all' | 'pending' | 'approved';
+  search?: string;
+  isActive?: boolean;
+  role?: string;
+  sortBy?: 'createdAt' | 'fullName';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  pageSize?: number;
+}
 
-    return response.data.data || [];
+export const fetchAdminUsers = async ({
+  status = 'all',
+  search,
+  isActive,
+  role,
+  sortBy,
+  sortOrder,
+  page,
+  pageSize,
+}: FetchAdminUsersParams = {}): Promise<UserListResult> => {
+  try {
+    const params = new URLSearchParams();
+    if (status !== 'all') params.set('status', status);
+    if (search) params.set('search', search);
+    if (isActive !== undefined) params.set('isActive', String(isActive));
+    if (role) params.set('role', role);
+    if (sortBy) params.set('sortBy', sortBy);
+    if (sortOrder) params.set('sortOrder', sortOrder);
+    if (page) params.set('page', String(page));
+    if (pageSize) params.set('pageSize', String(pageSize));
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await apiClient.get<ApiResponse<UserListResult>>(`/admin/users${query}`);
+
+    return response.data.data ?? { users: [], total: 0, page: 1, pageSize: 20 };
   } catch (error) {
     throw new Error(getErrorMessage(error));
   }

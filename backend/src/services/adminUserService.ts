@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../utils/prisma';
 import { HttpError } from '../utils/httpError';
@@ -34,28 +34,63 @@ export const validateAdminUpdateRoleInput = (input: unknown): AdminUpdateRoleInp
 export const validateAdminUpdateStatusInput = (input: unknown): AdminUpdateStatusInput =>
   updateStatusSchema.parse(input);
 
-export const listUsers = async (status?: string) => {
-  const where =
-    status === 'pending'
-      ? { isApproved: false }
-      : status === 'approved'
-        ? { isApproved: true }
-        : undefined;
+export interface ListUsersParams {
+  status?: string;
+  search?: string;
+  isActive?: boolean;
+  role?: UserRole;
+  sortBy?: 'createdAt' | 'fullName';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  pageSize?: number;
+}
 
-  return prisma.user.findMany({
-    where,
-    select: {
-      id: true,
-      email: true,
-      fullName: true,
-      role: true,
-      isApproved: true,
-      isActive: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+export const listUsers = async ({
+  status,
+  search,
+  isActive,
+  role,
+  sortBy = 'createdAt',
+  sortOrder = 'desc',
+  page = 1,
+  pageSize = 20,
+}: ListUsersParams = {}) => {
+  const where: Prisma.UserWhereInput = {};
+
+  if (status === 'pending') where.isApproved = false;
+  else if (status === 'approved') where.isApproved = true;
+
+  if (isActive !== undefined) where.isActive = isActive;
+  if (role) where.role = role;
+
+  if (search) {
+    where.OR = [
+      { email: { contains: search, mode: 'insensitive' } },
+      { fullName: { contains: search, mode: 'insensitive' } },
+    ];
+  }
+
+  const select = {
+    id: true,
+    email: true,
+    fullName: true,
+    role: true,
+    isApproved: true,
+    isActive: true,
+    createdAt: true,
+    updatedAt: true,
+  };
+
+  const orderBy: Prisma.UserOrderByWithRelationInput =
+    sortBy === 'fullName' ? { fullName: sortOrder } : { createdAt: sortOrder };
+
+  const skip = (page - 1) * pageSize;
+  const [users, total] = await prisma.$transaction([
+    prisma.user.findMany({ where, select, orderBy, skip, take: pageSize }),
+    prisma.user.count({ where }),
+  ]);
+
+  return { users, total, page, pageSize };
 };
 
 export const approveUser = async (userId: string, actorId: string) => {

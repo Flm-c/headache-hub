@@ -33,8 +33,48 @@ adminRouter.use(authenticate, requireRole(UserRole.ADMIN));
  *         name: status
  *         schema:
  *           type: string
- *           enum: [pending, active, blocked]
- *         description: Фильтр по статусу пользователя
+ *           enum: [pending, approved]
+ *         description: Фильтр по статусу одобрения
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Поиск по имени или email (case-insensitive)
+ *       - in: query
+ *         name: isActive
+ *         schema:
+ *           type: boolean
+ *         description: Фильтр по статусу бана (true = активен, false = заблокирован)
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *           enum: [PATIENT, EDITOR, ADMIN]
+ *         description: Фильтр по роли
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [createdAt, fullName]
+ *         description: Поле сортировки
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *         description: Направление сортировки
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Номер страницы
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           enum: [20, 50, 100]
+ *         description: Размер страницы
  *     responses:
  *       200:
  *         description: Список пользователей
@@ -101,8 +141,18 @@ adminRouter.use(authenticate, requireRole(UserRole.ADMIN));
 adminRouter.get('/users', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
-    const users = await listUsers(status);
-    sendSuccess(res, 200, 'Users fetched successfully', users);
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() || undefined : undefined;
+    const isActiveRaw = typeof req.query.isActive === 'string' ? req.query.isActive : undefined;
+    const isActive = isActiveRaw === 'true' ? true : isActiveRaw === 'false' ? false : undefined;
+    const roleRaw = typeof req.query.role === 'string' ? req.query.role : undefined;
+    const role = roleRaw && Object.values(UserRole).includes(roleRaw as UserRole) ? (roleRaw as UserRole) : undefined;
+    const sortBy = req.query.sortBy === 'fullName' ? ('fullName' as const) : ('createdAt' as const);
+    const sortOrder = req.query.sortOrder === 'asc' ? ('asc' as const) : ('desc' as const);
+    const page = Math.max(1, parseInt(typeof req.query.page === 'string' ? req.query.page : '1', 10) || 1);
+    const pageSizeRaw = parseInt(typeof req.query.pageSize === 'string' ? req.query.pageSize : '20', 10) || 20;
+    const pageSize = ([20, 50, 100] as number[]).includes(pageSizeRaw) ? pageSizeRaw : 20;
+    const result = await listUsers({ status, search, isActive, role, sortBy, sortOrder, page, pageSize });
+    sendSuccess(res, 200, 'Users fetched successfully', result);
   } catch (error) {
     next(error);
   }

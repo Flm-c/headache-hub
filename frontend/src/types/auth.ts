@@ -74,3 +74,10 @@ export interface AuditLogResult {
   page: number;
   pageSize: number;
 }
+
+export interface UserListResult {
+  users: User[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
