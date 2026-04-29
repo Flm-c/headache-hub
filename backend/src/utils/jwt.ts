@@ -10,6 +10,7 @@ export interface AccessTokenPayload {
 
 export interface RefreshTokenPayload {
   userId: string;
+  jti: string;
 }
 
 const jwtSecret = process.env.JWT_SECRET;
@@ -35,12 +36,12 @@ export const verifyAccessToken = (token: string): AccessTokenPayload => {
   return jwt.verify(token, jwtSecret) as AccessTokenPayload;
 };
 
-export const signRefreshToken = (userId: string): string => {
+export const signRefreshToken = (userId: string, jti: string): string => {
   const options: SignOptions = {
     expiresIn: (process.env.JWT_REFRESH_EXPIRATION || '30d') as SignOptions['expiresIn'],
   };
 
-  return jwt.sign({ userId }, jwtRefreshSecret as Secret, options);
+  return jwt.sign({ userId, jti }, jwtRefreshSecret as Secret, options);
 };
 
 export const verifyRefreshToken = (token: string): RefreshTokenPayload => {

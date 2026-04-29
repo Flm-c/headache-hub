@@ -1,4 +1,5 @@
 import slugify from 'slugify';
+import sanitizeHtml from 'sanitize-html';
 import { ArticleStatus } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../utils/prisma';
@@ -34,6 +35,26 @@ export type ListPublicQuery = z.infer<typeof listPublicQuerySchema>;
 export const validateCreateArticleInput = (input: unknown) => createArticleSchema.parse(input);
 export const validateUpdateArticleInput = (input: unknown) => updateArticleSchema.parse(input);
 export const validateListPublicQuery = (input: unknown) => listPublicQuerySchema.parse(input);
+
+// ─── HTML Sanitization ────────────────────────────────────────────────────────
+
+const ALLOWED_TAGS = [
+  ...sanitizeHtml.defaults.allowedTags,
+  'h1', 'h2', 'h3', 'h4', 'img', 'figure', 'figcaption',
+  's', 'sup', 'sub',
+];
+
+const sanitizeContent = (html: string): string =>
+  sanitizeHtml(html, {
+    allowedTags: ALLOWED_TAGS,
+    allowedAttributes: {
+      ...sanitizeHtml.defaults.allowedAttributes,
+      '*': ['class'],
+      a: ['href', 'target', 'rel'],
+      img: ['src', 'alt', 'width', 'height'],
+    },
+    allowedSchemes: ['https', 'http', 'mailto'],
+  });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -158,7 +179,7 @@ export const createArticle = async (authorId: string, input: CreateArticleInput)
     data: {
       title: input.title,
       slug,
-      content: input.content,
+      content: sanitizeContent(input.content),
       excerpt: input.excerpt ?? null,
       commentsEnabled: input.commentsEnabled ?? false,
       authorId,
@@ -191,7 +212,7 @@ export const updateArticle = async (
     data: {
       title: input.title,
       slug,
-      content: input.content,
+      content: input.content !== undefined ? sanitizeContent(input.content) : undefined,
       excerpt: input.excerpt,
       commentsEnabled: input.commentsEnabled,
       // If content or title changes, reset to DRAFT (author must re-publish)

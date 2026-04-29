@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import { randomUUID } from 'crypto';
 import { User } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../utils/prisma';
@@ -91,6 +92,12 @@ export const loginUser = async (input: LoginInput): Promise<AuthResult> => {
     throw new HttpError(401, 'Authentication failed', 'Invalid email or password');
   }
 
+  const jti = randomUUID();
+  const refreshExpiresMs = 30 * 24 * 60 * 60 * 1000; // 30 days
+  const expiresAt = new Date(Date.now() + refreshExpiresMs);
+
+  await prisma.refreshToken.create({ data: { jti, userId: user.id, expiresAt } });
+
   return {
     user: toSafeUser(user),
     token: signAccessToken({
@@ -99,7 +106,7 @@ export const loginUser = async (input: LoginInput): Promise<AuthResult> => {
       role: user.role,
       isApproved: user.isApproved,
     }),
-    refreshToken: signRefreshToken(user.id),
+    refreshToken: signRefreshToken(user.id, jti),
   };
 };
 

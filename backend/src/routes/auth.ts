@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { randomUUID } from 'crypto';
 import { authenticate } from '../middleware/auth';
 import { AuthenticatedRequest } from '../types/auth';
 import { sendSuccess, sendError } from '../utils/apiResponse';
@@ -176,16 +177,36 @@ authRouter.post('/refresh', async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
+    // Проверяем jti в БД
+    const storedToken = await prisma.refreshToken.findUnique({ where: { jti: payload.jti } });
+
+    if (!storedToken || storedToken.expiresAt < new Date()) {
+      // Токен не найден или истёк — возможная атака повторного использования
+      // Инвалидируем все refresh-токены пользователя
+      await prisma.refreshToken.deleteMany({ where: { userId: payload.userId } });
+      res.clearCookie(REFRESH_COOKIE, { path: '/' });
+      sendError(res, 401, 'Unauthorized', 'Refresh token invalid or revoked');
+      return;
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
       select: { id: true, email: true, role: true, isApproved: true, isActive: true },
     });
 
     if (!user || !user.isActive) {
+      await prisma.refreshToken.deleteMany({ where: { userId: payload.userId } });
       res.clearCookie(REFRESH_COOKIE, { path: '/' });
       sendError(res, 401, 'Unauthorized', 'User not found or inactive');
       return;
     }
+
+    // Ротация: удаляем старый, создаём новый
+    const newJti = randomUUID();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await prisma.refreshToken.delete({ where: { jti: payload.jti } });
+    await prisma.refreshToken.create({ data: { jti: newJti, userId: user.id, expiresAt } });
 
     const newAccessToken = signAccessToken({
       userId: user.id,
@@ -193,7 +214,7 @@ authRouter.post('/refresh', async (req: Request, res: Response, next: NextFuncti
       role: user.role,
       isApproved: user.isApproved,
     });
-    const newRefreshToken = signRefreshToken(user.id);
+    const newRefreshToken = signRefreshToken(user.id, newJti);
 
     res.cookie(REFRESH_COOKIE, newRefreshToken, COOKIE_OPTIONS);
     sendSuccess(res, 200, 'Token refreshed', { token: newAccessToken });
@@ -203,6 +224,17 @@ authRouter.post('/refresh', async (req: Request, res: Response, next: NextFuncti
 });
 
 authRouter.post('/logout', async (req: Request, res: Response) => {
+  const refreshToken = req.cookies?.[REFRESH_COOKIE] as string | undefined;
+
+  if (refreshToken) {
+    try {
+      const payload = verifyRefreshToken(refreshToken);
+      await prisma.refreshToken.deleteMany({ where: { jti: payload.jti } });
+    } catch {
+      // токен невалидный — просто очищаем куку
+    }
+  }
+
   res.clearCookie(REFRESH_COOKIE, { path: '/' });
   sendSuccess(res, 200, 'Logged out successfully', null);
 });

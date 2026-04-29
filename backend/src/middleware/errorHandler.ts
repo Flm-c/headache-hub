@@ -20,6 +20,16 @@ export const errorHandler = (
     return;
   }
 
+  // Express body-parser: payload too large
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as Record<string, unknown>)['type'] === 'entity.too.large'
+  ) {
+    sendError(res, 413, 'Payload Too Large', 'Request body exceeds the allowed size limit');
+    return;
+  }
+
   const fallbackMessage = error instanceof Error ? error.message : 'Unknown server error';
   console.error('Unhandled error:', error);
   sendError(

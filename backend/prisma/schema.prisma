@@ -38,6 +38,7 @@ model User {
   comments      ArticleComment[]
   subscriptions UserSubscription[]
   auditLogs     AuditLog[]
+  refreshTokens RefreshToken[]
 
   @@index([email])
   @@index([role])
@@ -151,4 +152,19 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  jti       String   @unique  // JWT ID — уникальный идентификатор токена
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
 }
