@@ -5,6 +5,7 @@ dotenv.config();
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import authRouter from './routes/auth';
@@ -23,6 +24,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
+app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -35,21 +37,31 @@ app.use(
   })
 );
 
-// Rate limiting
+// Rate limiting — общий лимит
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
   message: 'Too many requests from this IP, please try again later.',
 });
 
+// Rate limiting — усиленный для auth (защита от брутфорса)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Too many authentication attempts, please try again later.',
+  skipSuccessfulRequests: true,
+});
+
 app.use('/api/', limiter);
 
-// Swagger UI
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.get('/api/docs.json', (req: Request, res: Response) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
-});
+// Swagger UI — только в development
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.get('/api/docs.json', (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+  });
+}
 
 // Health check route
 app.get('/health', (req: Request, res: Response) => {
@@ -60,7 +72,7 @@ app.get('/api', (req: Request, res: Response) => {
   sendSuccess(res, 200, 'Headache Hub API v1.0');
 });
 
-app.use('/api/auth', authRouter);
+app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/episodes', episodesRouter);
 app.use('/api/articles', articlesRouter);

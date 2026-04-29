@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import DOMPurify from 'dompurify';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -133,7 +134,7 @@ export default function ArticlePage() {
       {/* Article content — rendered HTML from Tiptap */}
       <div
         className="article-body"
-        dangerouslySetInnerHTML={{ __html: article.content }}
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(article.content) }}
       />
 
       {/* Comments */}
