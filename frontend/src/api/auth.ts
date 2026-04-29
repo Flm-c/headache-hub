@@ -54,3 +54,11 @@ export const fetchCurrentUser = async (): Promise<User> => {
     throw new Error(getErrorMessage(error));
   }
 };
+
+export const logoutAccount = async (): Promise<void> => {
+  try {
+    await apiClient.post('/auth/logout');
+  } catch {
+    // best-effort: clear cookie on server, ignore errors
+  }
+};

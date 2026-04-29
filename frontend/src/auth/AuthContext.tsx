@@ -1,5 +1,5 @@
 import { createContext, useEffect, useState } from 'react';
-import { fetchCurrentUser, loginAccount, registerAccount } from '../api/auth';
+import { fetchCurrentUser, loginAccount, logoutAccount, registerAccount } from '../api/auth';
 import { clearStoredToken, getStoredToken, setStoredToken } from './storage';
 import { LoginRequest, RegisterRequest, User } from '../types/auth';
 
@@ -65,10 +65,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = (): void => {
-    window.location.href = '/';
+    void logoutAccount(); // best-effort: clears httpOnly cookie on server
     clearStoredToken();
     setToken(null);
     setUser(null);
+    window.location.href = '/';
   };
 
   const refreshUser = async (): Promise<void> => {

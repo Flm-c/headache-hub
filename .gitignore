@@ -49,6 +49,9 @@ coverage/
 .next/
 .cache/
 
+# Copilot local memory
+.github/copilot/
+
 
 # Other
 PHASE1_SUMMARY.md

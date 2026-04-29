@@ -3,7 +3,7 @@ import { User } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../utils/prisma';
 import { HttpError } from '../utils/httpError';
-import { signAccessToken } from '../utils/jwt';
+import { signAccessToken, signRefreshToken } from '../utils/jwt';
 
 const registerSchema = z.object({
   fullName: z.string().trim().min(2, 'Full name must be at least 2 characters long').max(120),
@@ -33,6 +33,7 @@ export interface SafeUser {
 export interface AuthResult {
   user: SafeUser;
   token: string;
+  refreshToken: string;
 }
 
 const toSafeUser = (user: User): SafeUser => ({
@@ -98,6 +99,7 @@ export const loginUser = async (input: LoginInput): Promise<AuthResult> => {
       role: user.role,
       isApproved: user.isApproved,
     }),
+    refreshToken: signRefreshToken(user.id),
   };
 };
 

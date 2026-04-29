@@ -4,6 +4,7 @@ dotenv.config();
 
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import authRouter from './routes/auth';
 import adminRouter from './routes/admin';
@@ -22,6 +23,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // CORS
 app.use(
