@@ -2,6 +2,7 @@ import { MigraineEpisode } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../utils/prisma';
 import { HttpError } from '../utils/httpError';
+import { recalcUserStats } from './userStatsService';
 
 const createEpisodeSchema = z.object({
   date: z.coerce.date(),
@@ -79,7 +80,7 @@ const buildDateRangeWhere = (dateFrom?: Date, dateTo?: Date) => {
 };
 
 export const createEpisode = async (userId: string, input: CreateEpisodeInput): Promise<MigraineEpisode> => {
-  return prisma.migraineEpisode.create({
+  const episode = await prisma.migraineEpisode.create({
     data: {
       userId,
       date: input.date,
@@ -90,6 +91,8 @@ export const createEpisode = async (userId: string, input: CreateEpisodeInput): 
       notes: input.notes ?? null,
     },
   });
+  recalcUserStats(userId);
+  return episode;
 };
 
 export const listEpisodes = async (
@@ -153,7 +156,7 @@ export const updateEpisode = async (
     throw new HttpError(404, 'Not Found', `Episode with ID '${episodeId}' does not exist`);
   }
 
-  return prisma.migraineEpisode.update({
+  const updated = await prisma.migraineEpisode.update({
     where: { id: episodeId },
     data: {
       date: input.date,
@@ -164,6 +167,8 @@ export const updateEpisode = async (
       notes: input.notes,
     },
   });
+  recalcUserStats(userId);
+  return updated;
 };
 
 export const deleteEpisode = async (userId: string, episodeId: string): Promise<void> => {
@@ -181,6 +186,7 @@ export const deleteEpisode = async (userId: string, episodeId: string): Promise<
   await prisma.migraineEpisode.delete({
     where: { id: episodeId },
   });
+  recalcUserStats(userId);
 };
 
 export const getEpisodeStats = async (

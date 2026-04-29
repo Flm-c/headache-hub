@@ -2,12 +2,19 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { fetchEpisodeStats } from '../api/episodes';
+import { fetchUserStats } from '../api/userStats';
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { data: stats } = useQuery({
     queryKey: ['episodeStats', 'dashboard'],
     queryFn: () => fetchEpisodeStats(),
+    enabled: Boolean(user?.isApproved),
+  });
+
+  const { data: userStats } = useQuery({
+    queryKey: ['userStats'],
+    queryFn: fetchUserStats,
     enabled: Boolean(user?.isApproved),
   });
 
@@ -56,7 +63,7 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
             <div className="rounded-xl border border-blue-100 bg-blue-50 p-5">
               <div className="text-sm text-blue-700">Total episodes</div>
               <div className="mt-2 text-2xl font-semibold text-blue-900">
@@ -73,6 +80,18 @@ export default function DashboardPage() {
               <div className="text-sm text-blue-700">Average duration</div>
               <div className="mt-2 text-2xl font-semibold text-blue-900">
                 {stats?.averageDurationMinutes ?? 0} min
+              </div>
+            </div>
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-5">
+              <div className="text-sm text-indigo-700">This month</div>
+              <div className="mt-2 text-2xl font-semibold text-indigo-900">
+                {userStats?.episodesThisMonth ?? '—'}
+              </div>
+            </div>
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-5">
+              <div className="text-sm text-indigo-700">Last month</div>
+              <div className="mt-2 text-2xl font-semibold text-indigo-900">
+                {userStats?.episodesLastMonth ?? '—'}
               </div>
             </div>
           </div>
