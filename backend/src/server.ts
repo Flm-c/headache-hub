@@ -6,6 +6,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import swaggerUi from 'swagger-ui-express';
 import authRouter from './routes/auth';
 import adminRouter from './routes/admin';
 import episodesRouter from './routes/episodes';
@@ -15,6 +16,7 @@ import userStatsRouter from './routes/userStats';
 import { errorHandler } from './middleware/errorHandler';
 import { prisma } from './utils/prisma';
 import { sendError, sendSuccess } from './utils/apiResponse';
+import { swaggerSpec } from './utils/swagger';
 
 // Initialize Express app
 const app = express();
@@ -41,6 +43,13 @@ const limiter = rateLimit({
 });
 
 app.use('/api/', limiter);
+
+// Swagger UI
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api/docs.json', (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
 
 // Health check route
 app.get('/health', (req: Request, res: Response) => {
@@ -76,7 +85,8 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`🚀 Server running at http://localhost:${PORT}`);
       console.log(`📝 API available at http://localhost:${PORT}/api`);
-      console.log(`💚 Health check at http://localhost:${PORT}/health`);
+      console.log(`� Swagger UI at http://localhost:${PORT}/api/docs`);
+      console.log(`�💚 Health check at http://localhost:${PORT}/health`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

@@ -24,6 +24,43 @@ const COOKIE_OPTIONS = {
 
 const authRouter = Router();
 
+/**
+ * @openapi
+ * /api/auth/register:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Регистрация нового пользователя
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *               fullName:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Аккаунт создан, ожидает одобрения администратора
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       400:
+ *         description: Ошибка валидации
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 authRouter.post('/register', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const input = validateRegisterInput(req.body);
@@ -35,6 +72,51 @@ authRouter.post('/register', async (req: Request, res: Response, next: NextFunct
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/login:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Вход в систему
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Успешный вход. Устанавливает httpOnly-куку с refresh-токеном
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         user:
+ *                           $ref: '#/components/schemas/User'
+ *                         token:
+ *                           type: string
+ *                           description: JWT access-токен (15 минут)
+ *       401:
+ *         description: Неверные учётные данные
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 authRouter.post('/login', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const input = validateLoginInput(req.body);
@@ -47,6 +129,35 @@ authRouter.post('/login', async (req: Request, res: Response, next: NextFunction
   }
 });
 
+/**
+ * @openapi
+ * /api/auth/refresh:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Обновление access-токена по refresh-кукe
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Новый access-токен выдан, refresh-кука обновлена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         token:
+ *                           type: string
+ *       401:
+ *         description: Refresh-токен отсутствует или истёк
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 authRouter.post('/refresh', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const refreshToken = req.cookies?.[REFRESH_COOKIE] as string | undefined;
@@ -96,6 +207,49 @@ authRouter.post('/logout', async (req: Request, res: Response) => {
   sendSuccess(res, 200, 'Logged out successfully', null);
 });
 
+/**
+ * @openapi
+ * /api/auth/logout:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Выход из системы
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Refresh-кука очищена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @openapi
+ * /api/auth/me:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Получить текущего авторизованного пользователя
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Данные текущего пользователя
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/User'
+ *       401:
+ *         description: Не авторизован
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 authRouter.get(
   '/me',
   authenticate,

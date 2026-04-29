@@ -20,6 +20,84 @@ const adminRouter = Router();
 
 adminRouter.use(authenticate, requireRole(UserRole.ADMIN));
 
+/**
+ * @openapi
+ * /api/admin/users:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Получить список всех пользователей
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, active, blocked]
+ *         description: Фильтр по статусу пользователя
+ *     responses:
+ *       200:
+ *         description: Список пользователей
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/User'
+ *       403:
+ *         description: Нет прав (требуется роль ADMIN)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *   post:
+ *     tags: [Admin]
+ *     summary: Создать пользователя (администратором)
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password, role]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *               fullName:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *                 enum: [PATIENT, EDITOR, ADMIN]
+ *     responses:
+ *       201:
+ *         description: Пользователь создан
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/User'
+ *       403:
+ *         description: Нет прав
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 adminRouter.get('/users', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
@@ -40,6 +118,46 @@ adminRouter.post('/users', async (req: AuthenticatedRequest, res: Response, next
   }
 });
 
+/**
+ * @openapi
+ * /api/admin/users/{userId}/approve:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Одобрить регистрацию пользователя
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Пользователь одобрен
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/User'
+ *       403:
+ *         description: Нет прав
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Пользователь не найден
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 adminRouter.patch(
   '/users/:userId/approve',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -52,6 +170,51 @@ adminRouter.patch(
   }
 );
 
+/**
+ * @openapi
+ * /api/admin/users/{userId}/role:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Изменить роль пользователя
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [role]
+ *             properties:
+ *               role:
+ *                 type: string
+ *                 enum: [PATIENT, EDITOR, ADMIN]
+ *     responses:
+ *       200:
+ *         description: Роль обновлена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/User'
+ *       403:
+ *         description: Нет прав
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 adminRouter.patch(
   '/users/:userId/role',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -65,6 +228,50 @@ adminRouter.patch(
   }
 );
 
+/**
+ * @openapi
+ * /api/admin/users/{userId}/status:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Изменить статус активности пользователя (блокировка/разблокировка)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [isActive]
+ *             properties:
+ *               isActive:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Статус обновлён
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/User'
+ *       403:
+ *         description: Нет прав или попытка заблокировать себя
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 adminRouter.patch(
   '/users/:userId/status',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -83,6 +290,68 @@ adminRouter.patch(
   }
 );
 
+/**
+ * @openapi
+ * /api/admin/audit-logs:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Получить журнал аудита
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 50
+ *       - in: query
+ *         name: action
+ *         schema:
+ *           type: string
+ *           enum: [USER_APPROVED, USER_ROLE_CHANGED, USER_BLOCKED, USER_UNBLOCKED, USER_CREATED, ARTICLE_PUBLISHED, ARTICLE_UNPUBLISHED, PROFILE_NAME_UPDATED, PASSWORD_CHANGED]
+ *         description: Фильтр по типу действия
+ *       - in: query
+ *         name: actorId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Фильтр по ID исполнителя
+ *     responses:
+ *       200:
+ *         description: Журнал аудита с пагинацией
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         items:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/AuditLog'
+ *                         total:
+ *                           type: integer
+ *                         page:
+ *                           type: integer
+ *                         pageSize:
+ *                           type: integer
+ *       403:
+ *         description: Нет прав
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 adminRouter.get(
   '/audit-logs',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {

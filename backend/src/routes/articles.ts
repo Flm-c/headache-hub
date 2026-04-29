@@ -30,6 +30,49 @@ const articlesRouter = Router();
 
 // ─── Public routes (no auth required) ────────────────────────────────────────
 
+/**
+ * @openapi
+ * /api/articles:
+ *   get:
+ *     tags: [Articles]
+ *     summary: Список опубликованных статей (публичный)
+ *     security: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Поиск по заголовку
+ *     responses:
+ *       200:
+ *         description: Список опубликованных статей
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         items:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/Article'
+ *                         total:
+ *                           type: integer
+ */
 articlesRouter.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const query = validateListPublicQuery(req.query);
@@ -40,6 +83,38 @@ articlesRouter.get('/', async (req: Request, res: Response, next: NextFunction) 
   }
 });
 
+/**
+ * @openapi
+ * /api/articles/slug/{slug}:
+ *   get:
+ *     tags: [Articles]
+ *     summary: Получить опубликованную статью по slug (публичный)
+ *     security: []
+ *     parameters:
+ *       - in: path
+ *         name: slug
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Статья найдена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Article'
+ *       404:
+ *         description: Статья не найдена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 articlesRouter.get(
   '/slug/:slug',
   async (req: Request, res: Response, next: NextFunction) => {
@@ -51,6 +126,76 @@ articlesRouter.get(
     }
   }
 );
+
+/**
+ * @openapi
+ * /api/articles/{articleId}/comments:
+ *   get:
+ *     tags: [Articles]
+ *     summary: Список комментариев к статье (публичный)
+ *     security: []
+ *     parameters:
+ *       - in: path
+ *         name: articleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Список комментариев
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/ArticleComment'
+ *   post:
+ *     tags: [Articles]
+ *     summary: Добавить комментарий к статье
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: articleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [content]
+ *             properties:
+ *               content:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Комментарий создан
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/ArticleComment'
+ *       403:
+ *         description: Аккаунт не одобрен
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 
 // Public: list comments for a published article
 articlesRouter.get(
@@ -69,6 +214,35 @@ articlesRouter.get(
 
 const authorMiddleware = [authenticate, requireRole(UserRole.EDITOR, UserRole.ADMIN)];
 
+/**
+ * @openapi
+ * /api/articles/my:
+ *   get:
+ *     tags: [Articles]
+ *     summary: Получить список своих статей (EDITOR/ADMIN)
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Список статей автора
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Article'
+ *       403:
+ *         description: Нет прав
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 articlesRouter.get(
   '/my',
   ...authorMiddleware,
@@ -82,6 +256,40 @@ articlesRouter.get(
   }
 );
 
+/**
+ * @openapi
+ * /api/articles/my/{articleId}:
+ *   get:
+ *     tags: [Articles]
+ *     summary: Получить свою статью по ID (EDITOR/ADMIN)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: articleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Статья найдена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Article'
+ *       404:
+ *         description: Не найдена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 articlesRouter.get(
   '/my/:articleId',
   ...authorMiddleware,
@@ -95,6 +303,117 @@ articlesRouter.get(
   }
 );
 
+/**
+ * @openapi
+ * /api/articles/{articleId}:
+ *   patch:
+ *     tags: [Articles]
+ *     summary: Обновить статью (EDITOR/ADMIN)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: articleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               content:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Статья обновлена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Article'
+ *       403:
+ *         description: Нет прав
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *   delete:
+ *     tags: [Articles]
+ *     summary: Удалить статью (EDITOR/ADMIN)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: articleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Статья удалена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       403:
+ *         description: Нет прав
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+
+/**
+ * @openapi
+ * /api/articles:
+ *   post:
+ *     tags: [Articles]
+ *     summary: Создать новую статью (EDITOR/ADMIN)
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title, content]
+ *             properties:
+ *               title:
+ *                 type: string
+ *               content:
+ *                 type: string
+ *                 description: HTML-контент (Tiptap)
+ *     responses:
+ *       201:
+ *         description: Статья создана (черновик)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Article'
+ *       403:
+ *         description: Нет прав
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 articlesRouter.post(
   '/',
   ...authorMiddleware,
@@ -124,6 +443,40 @@ articlesRouter.patch(
   }
 );
 
+/**
+ * @openapi
+ * /api/articles/{articleId}/publish:
+ *   patch:
+ *     tags: [Articles]
+ *     summary: Опубликовать статью (EDITOR/ADMIN)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: articleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Статья опубликована
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Article'
+ *       403:
+ *         description: Нет прав
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 articlesRouter.patch(
   '/:articleId/publish',
   ...authorMiddleware,
@@ -138,6 +491,40 @@ articlesRouter.patch(
   }
 );
 
+/**
+ * @openapi
+ * /api/articles/{articleId}/unpublish:
+ *   patch:
+ *     tags: [Articles]
+ *     summary: Снять статью с публикации (EDITOR/ADMIN)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: articleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Статья снята с публикации
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Article'
+ *       403:
+ *         description: Нет прав
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 articlesRouter.patch(
   '/:articleId/unpublish',
   ...authorMiddleware,
@@ -186,6 +573,41 @@ articlesRouter.post(
   }
 );
 
+/**
+ * @openapi
+ * /api/articles/{articleId}/comments/{commentId}:
+ *   delete:
+ *     tags: [Articles]
+ *     summary: Удалить комментарий (свой или ADMIN)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: articleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: path
+ *         name: commentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Комментарий удалён
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       403:
+ *         description: Нет прав
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 // Delete comment: own comment or ADMIN
 articlesRouter.delete(
   '/:articleId/comments/:commentId',
@@ -203,6 +625,35 @@ articlesRouter.delete(
 
 // ─── Admin: all articles ──────────────────────────────────────────────────────
 
+/**
+ * @openapi
+ * /api/articles/admin/all:
+ *   get:
+ *     tags: [Articles]
+ *     summary: Получить все статьи включая черновики (ADMIN)
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Все статьи
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Article'
+ *       403:
+ *         description: Нет прав
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 articlesRouter.get(
   '/admin/all',
   authenticate,
