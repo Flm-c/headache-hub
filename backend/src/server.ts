@@ -69,7 +69,7 @@ const limiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
 });
 
-// Rate limiting — усиленный для auth (защита от брутфорса)
+// Rate limiting — усиленный для auth (защита от брутфорса; только в production)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -112,7 +112,7 @@ app.get('/api', (req: Request, res: Response) => {
   sendSuccess(res, 200, 'Headache Hub API v1.0');
 });
 
-app.use('/api/auth', authLimiter, authRouter);
+app.use('/api/auth', ...(process.env.NODE_ENV === 'production' ? [authLimiter] : []), authRouter);
 app.use('/api/admin', adminLimiter, adminRouter);
 app.use('/api/episodes', episodesRouter);
 app.use('/api/articles', articlesWriteLimiter, articlesRouter);
