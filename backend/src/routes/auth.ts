@@ -178,6 +178,13 @@ authRouter.post('/refresh', async (req: Request, res: Response, next: NextFuncti
     }
 
     // Проверяем jti в БД
+    // Guard: токены без jti (старый формат до внедрения ротации) — отклоняем
+    if (!payload.jti) {
+      res.clearCookie(REFRESH_COOKIE, { path: '/' });
+      sendError(res, 401, 'Unauthorized', 'Refresh token invalid or revoked');
+      return;
+    }
+
     const storedToken = await prisma.refreshToken.findUnique({ where: { jti: payload.jti } });
 
     if (!storedToken || storedToken.expiresAt < new Date()) {

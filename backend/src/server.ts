@@ -25,7 +25,26 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy:
+      process.env.NODE_ENV === 'production'
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'"],
+              styleSrc: ["'self'", "'unsafe-inline'"], // required for Tiptap inline styles
+              imgSrc: ["'self'", 'data:', 'https:'],   // allow external images in articles
+              connectSrc: ["'self'"],
+              fontSrc: ["'self'", 'https:', 'data:'],
+              objectSrc: ["'none'"],
+              frameSrc: ["'none'"],
+              baseUri: ["'self'"],
+            },
+          }
+        : false, // disable CSP in dev — Swagger UI requires inline scripts/styles
+  })
+);
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '500kb' }));
 app.use(express.urlencoded({ extended: true, limit: '500kb' }));
@@ -56,6 +75,21 @@ const authLimiter = rateLimit({
   skipSuccessfulRequests: true,
 });
 
+// Rate limiting — запись контента (статьи): защита от спама и флудинга
+const articlesWriteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: 'Too many write operations, please try again later.',
+  skip: (req) => req.method === 'GET' || req.method === 'OPTIONS',
+});
+
+// Rate limiting — админ панель: отдельный лимит поверх общего
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  message: 'Too many admin requests, please try again later.',
+});
+
 app.use('/api/', limiter);
 
 // Swagger UI — только в development
@@ -77,9 +111,9 @@ app.get('/api', (req: Request, res: Response) => {
 });
 
 app.use('/api/auth', authLimiter, authRouter);
-app.use('/api/admin', adminRouter);
+app.use('/api/admin', adminLimiter, adminRouter);
 app.use('/api/episodes', episodesRouter);
-app.use('/api/articles', articlesRouter);
+app.use('/api/articles', articlesWriteLimiter, articlesRouter);
 app.use('/api/profile', profileRouter);
 app.use('/api/user-stats', userStatsRouter);
 

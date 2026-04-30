@@ -1,5 +1,5 @@
 import { createContext, useEffect, useState } from 'react';
-import { fetchCurrentUser, loginAccount, logoutAccount, registerAccount } from '../api/auth';
+import { fetchCurrentUser, loginAccount, logoutAccount, registerAccount, silentRefresh } from '../api/auth';
 import { clearStoredToken, getStoredToken, setStoredToken } from './storage';
 import { LoginRequest, RegisterRequest, User } from '../types/auth';
 
@@ -22,24 +22,23 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(getStoredToken());
+  // Token is intentionally NOT read from localStorage — it lives only in memory.
+  // Session is restored on page load via silent refresh (httpOnly cookie).
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const initializeAuth = async () => {
-      const storedToken = getStoredToken();
-
-      
-      if (!storedToken) {
-        setIsLoading(false);
-        return;
-      }
-
       try {
+        // Restore session using the httpOnly refresh cookie.
+        // This is safe because the refresh token is never accessible to JS.
+        const newToken = await silentRefresh();
+        setStoredToken(newToken);
+        setToken(newToken);
         const currentUser = await fetchCurrentUser();
         setUser(currentUser);
-        setToken(storedToken);
-      } catch (error) {
+      } catch {
+        // No valid refresh cookie or session expired — user stays logged out.
         clearStoredToken();
         setToken(null);
         setUser(null);

@@ -62,3 +62,14 @@ export const logoutAccount = async (): Promise<void> => {
     // best-effort: clear cookie on server, ignore errors
   }
 };
+
+// Silently refresh access token using the httpOnly refresh cookie.
+// Called on page load to restore session without requiring re-login.
+export const silentRefresh = async (): Promise<string> => {
+  const response = await apiClient.post<ApiResponse<{ token: string }>>('/auth/refresh');
+  const token = response.data.data?.token;
+  if (!token) {
+    throw new Error('Refresh response did not include token');
+  }
+  return token;
+};

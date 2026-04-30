@@ -1,13 +1,14 @@
-const AUTH_TOKEN_KEY = 'headache-hub.access-token';
+// Access token is stored only in module-level memory — not in localStorage.
+// This prevents XSS attacks from reading the token via `localStorage.getItem()`.
+// Session is restored on page load via silent refresh (httpOnly refresh cookie).
+let _accessToken: string | null = null;
 
-export const getStoredToken = (): string | null => {
-  return window.localStorage.getItem(AUTH_TOKEN_KEY);
-};
+export const getStoredToken = (): string | null => _accessToken;
 
 export const setStoredToken = (token: string): void => {
-  window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+  _accessToken = token;
 };
 
 export const clearStoredToken = (): void => {
-  window.localStorage.removeItem(AUTH_TOKEN_KEY);
+  _accessToken = null;
 };
