@@ -4,6 +4,8 @@ import {
   AdminCreateUserRequest,
   ApiResponse,
   AuditLogResult,
+  SystemSettings,
+  UpdateSystemSettingsRequest,
   UpdateUserRoleRequest,
   UpdateUserStatusRequest,
   User,
@@ -138,6 +140,36 @@ export const fetchAuditLogs = async (params: {
 
     if (!response.data.data) {
       throw new Error('Audit logs response did not include data');
+    }
+
+    return response.data.data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+};
+
+export const fetchSystemSettings = async (): Promise<SystemSettings> => {
+  try {
+    const response = await apiClient.get<ApiResponse<SystemSettings>>('/admin/settings');
+
+    if (!response.data.data) {
+      throw new Error('Settings response did not include data');
+    }
+
+    return response.data.data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+};
+
+export const updateSystemSettings = async (
+  payload: UpdateSystemSettingsRequest
+): Promise<SystemSettings> => {
+  try {
+    const response = await apiClient.patch<ApiResponse<SystemSettings>>('/admin/settings', payload);
+
+    if (!response.data.data) {
+      throw new Error('Settings update response did not include data');
     }
 
     return response.data.data;

@@ -15,6 +15,7 @@ import {
   validateAdminUpdateRoleInput,
   validateAdminUpdateStatusInput,
 } from '../services/adminUserService';
+import { getSettings, updateSettings } from '../services/settingsService';
 
 const adminRouter = Router();
 
@@ -413,6 +414,68 @@ adminRouter.get(
 
       const result = await listAuditLogs({ page, pageSize, action, actorId });
       sendSuccess(res, 200, 'Audit logs fetched successfully', result);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ── System Settings ────────────────────────────────────────────────────────────
+
+adminRouter.get(
+  '/settings',
+  async (_req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const settings = await getSettings();
+      sendSuccess(res, 200, 'Settings fetched successfully', settings);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+adminRouter.patch(
+  '/settings',
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const {
+        emailVerificationEnabled,
+        passwordResetEnabled,
+        smtpHost,
+        smtpPort,
+        smtpUser,
+        smtpPassword,
+        smtpFrom,
+      } = req.body as Record<string, unknown>;
+
+      const input: Parameters<typeof updateSettings>[0] = {};
+
+      if (typeof emailVerificationEnabled === 'boolean') {
+        input.emailVerificationEnabled = emailVerificationEnabled;
+      }
+      if (typeof passwordResetEnabled === 'boolean') {
+        input.passwordResetEnabled = passwordResetEnabled;
+      }
+      if ('smtpHost' in req.body) {
+        input.smtpHost = typeof smtpHost === 'string' && smtpHost ? smtpHost : null;
+      }
+      if ('smtpPort' in req.body) {
+        const port = Number(smtpPort);
+        input.smtpPort = port > 0 && port < 65536 ? port : null;
+      }
+      if ('smtpUser' in req.body) {
+        input.smtpUser = typeof smtpUser === 'string' && smtpUser ? smtpUser : null;
+      }
+      if ('smtpPassword' in req.body) {
+        // empty string = clear password, truthy string = update
+        input.smtpPassword = typeof smtpPassword === 'string' && smtpPassword ? smtpPassword : null;
+      }
+      if ('smtpFrom' in req.body) {
+        input.smtpFrom = typeof smtpFrom === 'string' && smtpFrom ? smtpFrom : null;
+      }
+
+      const settings = await updateSettings(input);
+      sendSuccess(res, 200, 'Settings updated successfully', settings);
     } catch (error) {
       next(error);
     }

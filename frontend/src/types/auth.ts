@@ -81,3 +81,23 @@ export interface UserListResult {
   page: number;
   pageSize: number;
 }
+
+export interface SystemSettings {
+  emailVerificationEnabled: boolean;
+  passwordResetEnabled: boolean;
+  smtpHost: string | null;
+  smtpPort: number | null;
+  smtpUser: string | null;
+  smtpPasswordSet: boolean;
+  smtpFrom: string | null;
+}
+
+export interface UpdateSystemSettingsRequest {
+  emailVerificationEnabled?: boolean;
+  passwordResetEnabled?: boolean;
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpUser?: string | null;
+  smtpPassword?: string | null;
+  smtpFrom?: string | null;
+}

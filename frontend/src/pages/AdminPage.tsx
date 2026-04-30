@@ -5,10 +5,12 @@ import {
   createAdminUser,
   fetchAdminUsers,
   fetchAuditLogs,
+  fetchSystemSettings,
   updateAdminUserRole,
   updateAdminUserStatus,
+  updateSystemSettings,
 } from '../api/admin';
-import { AuditLogEntry, UserRole } from '../types/auth';
+import { AuditLogEntry, SystemSettings, UpdateSystemSettingsRequest, UserRole } from '../types/auth';
 
 const roles: UserRole[] = ['PATIENT', 'EDITOR', 'ADMIN'];
 
@@ -22,7 +24,7 @@ type ConfirmAction =
 
 export default function AdminPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'users' | 'audit'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'audit' | 'settings'>('users');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved'>('all');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'blocked'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
@@ -43,6 +45,22 @@ export default function AdminPage() {
   const [pageError, setPageError] = useState('');
   const [auditPage, setAuditPage] = useState(1);
   const [auditAction, setAuditAction] = useState('');
+
+  // Settings form state
+  const [smtpForm, setSmtpForm] = useState({
+    smtpHost: '',
+    smtpPort: '587',
+    smtpUser: '',
+    smtpPassword: '',
+    smtpFrom: '',
+  });
+  const [smtpFormInit, setSmtpFormInit] = useState(false);
+  const [settingsError, setSettingsError] = useState('');
+  const [settingsSuccess, setSettingsSuccess] = useState('');
+  const [featureConfirm, setFeatureConfirm] = useState<{
+    flag: 'emailVerificationEnabled' | 'passwordResetEnabled';
+    newValue: boolean;
+  } | null>(null);
 
   const handleSearch = () => {
     setSearchQuery(searchInput.trim());
@@ -80,6 +98,25 @@ export default function AdminPage() {
       fetchAuditLogs({ page: auditPage, pageSize: 20, action: auditAction || undefined }),
     enabled: activeTab === 'audit',
   });
+
+  const settingsQuery = useQuery({
+    queryKey: ['admin-settings'],
+    queryFn: fetchSystemSettings,
+    enabled: activeTab === 'settings',
+  });
+
+  // When settings load for the first time, populate SMTP form
+  const settings: SystemSettings | undefined = settingsQuery.data;
+  if (settings && !smtpFormInit) {
+    setSmtpFormInit(true);
+    setSmtpForm({
+      smtpHost: settings.smtpHost ?? '',
+      smtpPort: String(settings.smtpPort ?? 587),
+      smtpUser: settings.smtpUser ?? '',
+      smtpPassword: '',
+      smtpFrom: settings.smtpFrom ?? '',
+    });
+  }
 
   const invalidateUsers = async (): Promise<void> => {
     await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
@@ -129,10 +166,60 @@ export default function AdminPage() {
     onError: (error: Error) => setPageError(error.message),
   });
 
+  const settingsMutation = useMutation({
+    mutationFn: updateSystemSettings,
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
+      setSmtpFormInit(false); // reinit form on next render
+      setSettingsError('');
+      setSettingsSuccess('Settings saved.');
+      setTimeout(() => setSettingsSuccess(''), 3000);
+      // If feature flags were changed via mutation, close confirm modal
+      setFeatureConfirm(null);
+      // Re-init SMTP form from response
+      setSmtpForm({
+        smtpHost: data.smtpHost ?? '',
+        smtpPort: String(data.smtpPort ?? 587),
+        smtpUser: data.smtpUser ?? '',
+        smtpPassword: '',
+        smtpFrom: data.smtpFrom ?? '',
+      });
+      setSmtpFormInit(true);
+    },
+    onError: (error: Error) => { setSettingsError(error.message); setFeatureConfirm(null); },
+  });
+
   const handleCreateUser = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setPageError('');
     createUserMutation.mutate({ ...formData, isActive: true });
+  };
+
+  const handleSmtpSave = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSettingsError('');
+    const payload: UpdateSystemSettingsRequest = {
+      smtpHost: smtpForm.smtpHost || null,
+      smtpPort: smtpForm.smtpPort ? Number(smtpForm.smtpPort) : null,
+      smtpUser: smtpForm.smtpUser || null,
+      smtpFrom: smtpForm.smtpFrom || null,
+    };
+    if (smtpForm.smtpPassword) {
+      payload.smtpPassword = smtpForm.smtpPassword;
+    }
+    settingsMutation.mutate(payload);
+  };
+
+  const handleFeatureToggle = (
+    flag: 'emailVerificationEnabled' | 'passwordResetEnabled',
+    newValue: boolean
+  ) => {
+    setFeatureConfirm({ flag, newValue });
+  };
+
+  const confirmFeatureToggle = () => {
+    if (!featureConfirm) return;
+    settingsMutation.mutate({ [featureConfirm.flag]: featureConfirm.newValue });
   };
 
   const handleConfirm = () => {
@@ -251,7 +338,7 @@ export default function AdminPage() {
       </div>
 
       <div className="flex gap-1 border-b border-gray-200">
-        {(['users', 'audit'] as const).map((tab) => (
+        {(['users', 'audit', 'settings'] as const).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -262,7 +349,7 @@ export default function AdminPage() {
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            {tab === 'users' ? 'User Management' : 'Audit Log'}
+            {tab === 'users' ? 'User Management' : tab === 'audit' ? 'Audit Log' : 'Settings'}
           </button>
         ))}
       </div>
@@ -711,6 +798,212 @@ export default function AdminPage() {
             </div>
           )}
         </section>
+      )}
+
+      {activeTab === 'settings' && (
+        <div className="space-y-6">
+          {/* Feature confirmation modal */}
+          {featureConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+                <h3 className="text-base font-semibold text-gray-900 mb-1">
+                  {featureConfirm.newValue ? 'Enable' : 'Disable'}{' '}
+                  {featureConfirm.flag === 'emailVerificationEnabled'
+                    ? 'Email Verification'
+                    : 'Password Reset'}
+                  ?
+                </h3>
+                <p className="text-sm text-gray-500 mb-5">
+                  {featureConfirm.flag === 'emailVerificationEnabled' && featureConfirm.newValue &&
+                    'New users will need to verify their email before logging in. Requires SMTP to be configured.'}
+                  {featureConfirm.flag === 'emailVerificationEnabled' && !featureConfirm.newValue &&
+                    'Email verification will be disabled. New users can log in without confirming their email.'}
+                  {featureConfirm.flag === 'passwordResetEnabled' && featureConfirm.newValue &&
+                    'Users will be able to reset their password via email. Requires SMTP to be configured.'}
+                  {featureConfirm.flag === 'passwordResetEnabled' && !featureConfirm.newValue &&
+                    'Password reset via email will be disabled.'}
+                </p>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFeatureConfirm(null)}
+                    disabled={settingsMutation.isPending}
+                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmFeatureToggle}
+                    disabled={settingsMutation.isPending}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    {settingsMutation.isPending ? 'Saving...' : 'Confirm'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {settingsError && (
+            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{settingsError}</div>
+          )}
+          {settingsSuccess && (
+            <div className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">{settingsSuccess}</div>
+          )}
+
+          {/* Feature flags */}
+          <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold text-gray-900">Feature Flags</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Enable or disable platform features. Email-related features require SMTP to be configured first.
+              </p>
+            </div>
+
+            {settingsQuery.isLoading ? (
+              <div className="space-y-3">
+                {[1, 2].map((i) => <div key={i} className="h-14 bg-gray-100 animate-pulse rounded-lg" />)}
+              </div>
+            ) : settingsQuery.isError ? (
+              <p className="text-sm text-red-500">Failed to load settings.</p>
+            ) : settings ? (
+              <div className="space-y-4">
+                {/* Email Verification toggle */}
+                <div className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
+                  <div>
+                    <p className="font-medium text-gray-800 text-sm">Email Verification</p>
+                    <p className="text-xs text-gray-500">Require new users to verify their email address before accessing the platform.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleFeatureToggle('emailVerificationEnabled', !settings.emailVerificationEnabled)}
+                    disabled={settingsMutation.isPending}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-60 ${
+                      settings.emailVerificationEnabled ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                    role="switch"
+                    aria-checked={settings.emailVerificationEnabled}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${
+                        settings.emailVerificationEnabled ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Password Reset toggle */}
+                <div className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
+                  <div>
+                    <p className="font-medium text-gray-800 text-sm">Password Reset</p>
+                    <p className="text-xs text-gray-500">Allow users to reset their password via a link sent to their email.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleFeatureToggle('passwordResetEnabled', !settings.passwordResetEnabled)}
+                    disabled={settingsMutation.isPending}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-60 ${
+                      settings.passwordResetEnabled ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                    role="switch"
+                    aria-checked={settings.passwordResetEnabled}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${
+                        settings.passwordResetEnabled ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </section>
+
+          {/* SMTP Configuration */}
+          <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold text-gray-900">SMTP Configuration</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Configure outgoing email settings. Required for email verification and password reset.
+                {settings?.smtpPasswordSet && (
+                  <span className="ml-1 text-green-600 font-medium">Password is saved.</span>
+                )}
+              </p>
+            </div>
+
+            <form onSubmit={handleSmtpSave} className="grid gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">SMTP Host</label>
+                <input
+                  type="text"
+                  value={smtpForm.smtpHost}
+                  onChange={(e) => setSmtpForm((f) => ({ ...f, smtpHost: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm"
+                  placeholder="smtp.example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">SMTP Port</label>
+                <input
+                  type="number"
+                  value={smtpForm.smtpPort}
+                  onChange={(e) => setSmtpForm((f) => ({ ...f, smtpPort: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm"
+                  placeholder="587"
+                  min={1}
+                  max={65535}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">From Address</label>
+                <input
+                  type="text"
+                  value={smtpForm.smtpFrom}
+                  onChange={(e) => setSmtpForm((f) => ({ ...f, smtpFrom: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm"
+                  placeholder="Headache Hub <noreply@example.com>"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">SMTP Username</label>
+                <input
+                  type="text"
+                  value={smtpForm.smtpUser}
+                  onChange={(e) => setSmtpForm((f) => ({ ...f, smtpUser: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm"
+                  placeholder="username@example.com"
+                  autoComplete="off"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  SMTP Password
+                  {settings?.smtpPasswordSet && (
+                    <span className="ml-1 font-normal text-gray-400">(leave blank to keep current)</span>
+                  )}
+                </label>
+                <input
+                  type="password"
+                  value={smtpForm.smtpPassword}
+                  onChange={(e) => setSmtpForm((f) => ({ ...f, smtpPassword: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm"
+                  placeholder={settings?.smtpPasswordSet ? '••••••••' : 'Password'}
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className="md:col-span-2 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={settingsMutation.isPending}
+                  className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {settingsMutation.isPending ? 'Saving...' : 'Save SMTP settings'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
       )}
     </div>
   );

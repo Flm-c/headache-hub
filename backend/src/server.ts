@@ -8,6 +8,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
+import compression from 'compression';
 import swaggerUi from 'swagger-ui-express';
 import authRouter from './routes/auth';
 import adminRouter from './routes/admin';
@@ -45,6 +46,7 @@ app.use(
         : false, // disable CSP in dev — Swagger UI requires inline scripts/styles
   })
 );
+app.use(compression());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '500kb' }));
 app.use(express.urlencoded({ extended: true, limit: '500kb' }));

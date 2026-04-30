@@ -168,3 +168,20 @@ model RefreshToken {
   @@index([expiresAt])
   @@map("refresh_tokens")
 }
+
+// Singleton: всегда одна строка с id="singleton"
+model SystemSettings {
+  id                       String   @id @default("singleton")
+  // Feature flags
+  emailVerificationEnabled Boolean  @default(false)
+  passwordResetEnabled     Boolean  @default(false)
+  // SMTP configuration
+  smtpHost                 String?
+  smtpPort                 Int?     @default(587)
+  smtpUser                 String?
+  smtpPassword             String?  // хранится в открытом виде, доступ только через /api/admin
+  smtpFrom                 String?  // e.g. "Headache Hub <noreply@example.com>"
+  updatedAt                DateTime @updatedAt
+
+  @@map("system_settings")
+}
